@@ -1,12 +1,12 @@
 # ProgrammingAssignment2
 
-##Peter
+## Peter
 - Modify ProcessTrace
   - Alloc
 
-##ChenChen
+## ChenChen
 - Modify ProcessTrace
   - All commands (compare, put, fill, copy, dump, *?writeable status?*)
 
-##Tristan
+## Tristan
 - PageFrameAllocator
