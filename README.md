@@ -30,8 +30,8 @@
     - All pages should be marked *Writable* in the 1st and 2nd level page tables when initially allocated, and these pages should be initialized to zero.
         - You will need to switch out of virtual mode to modify page tables, and switch back into virtual mode to execute trace commands.
 
-##### Other Notes about PageFrameAllocator
-- For pages not allocated to the process, the first 4 bytes will contain the link to the next page on the free list. When a page is allocated to the process (via Allocate function), you should clear the page to all zeros at that point. When a page is deallocated (via Deallocate function, you would then be able to use the first 4 bytes again for the link. 
+#### Other Notes about PageFrameAllocator
+- For pages not allocated to the process, the first 4 bytes will contain the link to the next page on the free list. When a page is allocated to the process (via Allocate function), you should clear the page to all zeros at that point. When a page is deallocated (via Deallocate function), you would then be able to use the first 4 bytes again for the link. 
     - The basic idea is that when a page is on the free list, it's controlled by the page frame allocator. When the page is removed from the free list, any information in the page should be erased before control of the page is given to the caller to Allocate.
 - ProcessTrace allocates pages using PageFrameAllocator. It will need to allocate pages requested by the user **and** pages for the user process page table that will point to the requested pages.
 - When ProcessTrace encounters an Allocate request, it should allocate pages from PageFrameAllocator for the pages needed for user memory. It will need to map those pages into the process page table, so if the 2nd level page tables that would be needed to map those pages are not already present in the page table, ProcessTrace will also need to allocate additional page(s) for the 2nd level page table.
