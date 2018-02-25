@@ -115,90 +115,83 @@ void ProcessTrace::CmdAlloc(const string &line,
 }
 
 void ProcessTrace::CmdCompare(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs , MMU &vm) {
-    uint32_t addr = cmdArgs.at(0);
+                              const string &cmd,
+                              const vector<uint32_t> &cmdArgs) {
+  uint32_t addr = cmdArgs.at(0);
 
-    // Compare specified byte values
-    size_t num_bytes = cmdArgs.size() - 1;
-    uint8_t buffer[num_bytes];
-    vm.get_bytes(buffer, addr, num_bytes);
-    for (int i = 1; i < cmdArgs.size(); ++i) {
-        if (buffer[i - 1] != cmdArgs.at(i)) {
-            cout << "compare error at address " << std::hex << addr
-                    << ", expected " << static_cast<uint32_t> (cmdArgs.at(i))
-                    << ", actual is " << static_cast<uint32_t> (buffer[i - 1]) << "\n";
-        }
-        ++addr;
+  // Compare specified byte values
+  size_t num_bytes = cmdArgs.size() - 1;
+  uint8_t buffer[num_bytes];
+  memory->get_bytes(buffer, addr, num_bytes);
+  for (int i = 1; i < cmdArgs.size(); ++i) {
+    if(buffer[i-1] != cmdArgs.at(i)) {
+      cout << "compare error at address " << std::hex << addr
+              << ", expected " << static_cast<uint32_t>(cmdArgs.at(i))
+              << ", actual is " << static_cast<uint32_t>(buffer[i-1]) << "\n";
     }
+    ++addr;
+  }
 }
 
 void ProcessTrace::CmdPut(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs ,MMU &vm) {
-    // Put multiple bytes starting at specified address
-    uint32_t addr = cmdArgs.at(0);
-    size_t num_bytes = cmdArgs.size() - 1;
-    for(Addr i = 0; i < num_bytes; ++i) {
-     
-        vm.put_byte(addr + i, cmdArgs.at(i));
-    }
-    
+                          const string &cmd,
+                          const vector<uint32_t> &cmdArgs) {
+  // Put multiple bytes starting at specified address
+  uint32_t addr = cmdArgs.at(0);
+  size_t num_bytes = cmdArgs.size() - 1;
+  uint8_t buffer[num_bytes];
+  for (int i = 1; i < cmdArgs.size(); ++i) {
+     buffer[i-1] = cmdArgs.at(i);
+  }
+  memory->put_bytes(addr, num_bytes, buffer);
 }
 
 void ProcessTrace::CmdCopy(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs, MMU &vm) {
-    // Copy specified number of bytes to destination from source
-    Addr dst = cmdArgs.at(0);
-    Addr src = cmdArgs.at(1);
-    Addr num_bytes = cmdArgs.at(2);
-    
-    uint8_t buffer[num_bytes];
-    vm.get_bytes(buffer, src, num_bytes);
-   
-    uint8_t byte_read;
-    for (Addr i = 0;i<num_bytes;++i)
-    {
-        
-         vm.put_byte(dst + i, buffer[i]);
-    }
-    
+                           const string &cmd,
+                           const vector<uint32_t> &cmdArgs) {
+  // Copy specified number of bytes to destination from source
+  Addr dst = cmdArgs.at(0);
+  Addr src = cmdArgs.at(1);
+  Addr num_bytes = cmdArgs.at(2);
+  uint8_t buffer[num_bytes];
+  memory->get_bytes(buffer, src, num_bytes);
+  memory->put_bytes(dst, num_bytes, buffer);
 }
 
 void ProcessTrace::CmdFill(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs, MMU &vm) {
-    // Fill a sequence of bytes with the specified value
-    Addr addr = cmdArgs.at(0);
-    Addr num_bytes = cmdArgs.at(1);
-    uint8_t val = cmdArgs.at(2);
-    for (Addr i = 0; i < num_bytes; ++i) {
-        vm.put_byte(addr + i, val);
-    }
+                          const string &cmd,
+                          const vector<uint32_t> &cmdArgs) {
+  // Fill a sequence of bytes with the specified value
+  Addr addr = cmdArgs.at(0);
+  Addr num_bytes = cmdArgs.at(1);
+  uint8_t val = cmdArgs.at(2);
+  for (int i = 0; i < num_bytes; ++i) {
+    memory->put_byte(addr++, &val);
+  }
 }
 
 void ProcessTrace::CmdDump(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs, MMU &vm ) {
-    uint32_t addr = cmdArgs.at(0);
-    uint32_t count = cmdArgs.at(1);
+                          const string &cmd,
+                          const vector<uint32_t> &cmdArgs) {
+  uint32_t addr = cmdArgs.at(0);
+  uint32_t count = cmdArgs.at(1);
 
-    // Output the address
-    cout << std::hex << addr;
+  // Output the address
+  cout << std::hex << addr;
 
-    // Output the specified number of bytes starting at the address
-    for (int i = 0; i < count; ++i) {
-        if ((i % 16) == 0) { // line break every 16 bytes
-            cout << "\n";
-        }
-        uint8_t byte_val;
-        vm.get_byte(&byte_val, addr++);
-        cout << " " << std::setfill('0') << std::setw(2)
-                << static_cast<uint32_t> (byte_val);
+  // Output the specified number of bytes starting at the address
+  for(int i = 0; i < count; ++i) {
+    if((i % 16) == 0) {  // line break every 16 bytes
+      cout << "\n";
     }
-    cout << "\n";
+    uint8_t byte_val;
+    memory->get_byte(&byte_val, addr++);
+    cout << " " << std::setfill('0') << std::setw(2)
+            << static_cast<uint32_t> (byte_val);
+  }
+  cout << "\n";
 }
+
 
 void ProcessTrace::CmdWritable(const std::string& line,
         const std::string& cmd,
