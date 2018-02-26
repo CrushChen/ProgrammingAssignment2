@@ -11,38 +11,56 @@
 #include <cstring>
 #include <sstream>
 
-PageFrameAllocator::PageFrameAllocator(uint32_t page_frame_count) 
-: memory(page_frame_count * kPageSize),
-        page_frames_total(page_frame_count),
-        page_frames_free(page_frame_count),
-        free_list_head(0)
-{
-  // Add all page frames to free list
-  for (uint32_t frame = 0; frame < page_frame_count-1; ++frame) {
-    uint32_t next = frame + 1;
-    memcpy(&memory[frame*kPageSize], &next, sizeof(uint32_t));
-  }
-  
-  // Last page frame has end of list marker
-  uint32_t end_list = kEndList;
-  memcpy(&memory[(page_frame_count-1)*kPageSize], &end_list, sizeof(uint32_t));
+PageFrameAllocator::PageFrameAllocator(MMU &mmu_mem) {
+    //Set our internal MMU pointer to the pointer provided in our constructor
+    mem = mmu_mem;
+
+    //Build our free list
+    page_frames_total = mem->get_frame_count();
+    page_frames_free = mem->get_frame_count();
+    free_list_head = 0;
+
+    //Add all page frames to free list
+    /* This code puts a value of 0, 1, 2, ... into the first 4 bytes of 
+     * each page frame. */
+    for (Addr frame = 0; frame < page_frames_total-1; ++frame) {
+        Addr next = frame + 1;
+        mem->put_bytes(frame*kPageSize, sizeof(Addr), &next);
+    }
+    
+    /* This code sets the first four bytes of the very last page frame
+     * equal to 0xFFFFFFFF, which is our end-of-list marker */
+    Addr end_list = kEndList;
+    mem->put_bytes((page_frames_total-1)*kPageSize, sizeof(Addr), &end_list);
+
 }
 
-bool PageFrameAllocator::Allocate(uint32_t count, 
-                                  std::vector<uint32_t> &page_frames) {
-  if (count <= page_frames_free) {  // if enough to allocate
-    while (count-- > 0) {
-      // Return next free frame to caller
-      page_frames.push_back(free_list_head);
-      
-      // De-link frame from head of free list
-      memcpy(&free_list_head, &memory[free_list_head*kPageSize], sizeof(uint32_t));
-      --page_frames_free;
+bool PageFrameAllocator::Allocate(uint32_t count) {
+    if (count <= page_frames_free) { // if enough to allocate
+        Addr freeListHead_offset = free_list_head*kPageSize;
+        
+        /* Switch MMU to physical mode */
+        PMCB phys_pmcb; 
+        mem->set_PMCB(phys_pmcb);
+        
+        uint32_t zero = 0;
+        while (count-- > 0) {
+            /* Clear page frame before handing it off */
+            for(Addr i = 0; i < kPageSize; i*=sizeof(uint32_t)){
+                mem->put_bytes(freeListHead_offset, sizeof(uint32_t), &zero);  
+            }
+            mem->get_bytes(&free_list_head, freeListHead_offset, sizeof(Addr));
+            freeListHead_offset = free_list_head*kPageSize;
+            --page_frames_free;
+        }
+        
+        /* Put the MMU back into virtual mode */
+        PMCB vm_pmcb(true, freeListHead_offset); // load to start virtual mode
+        mem->set_PMCB(vm_pmcb);
+        return true;
+    } else {
+        return false; // do nothing and return error
     }
-    return true;
-  } else {
-    return false;  // do nothing and return error
-  }
 }
 
 bool PageFrameAllocator::Deallocate(uint32_t count,
