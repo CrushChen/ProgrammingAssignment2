@@ -9,7 +9,7 @@
  */
 
 #include "ProcessTrace.h"
-
+#include "Exceptions.h"
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
@@ -122,7 +122,13 @@ void ProcessTrace::CmdCompare(const string &line,
   // Compare specified byte values
   size_t num_bytes = cmdArgs.size() - 1;
   uint8_t buffer[num_bytes];
+  try{
   memory->get_bytes(buffer, addr, num_bytes);
+  }
+  catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << addr ; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
   for (int i = 1; i < cmdArgs.size(); ++i) {
     if(buffer[i-1] != cmdArgs.at(i)) {
       cout << "compare error at address " << std::hex << addr
@@ -141,9 +147,21 @@ void ProcessTrace::CmdPut(const string &line,
   size_t num_bytes = cmdArgs.size() - 1;
   uint8_t buffer[num_bytes];
   for (int i = 1; i < cmdArgs.size(); ++i) {
+      try{
      buffer[i-1] = cmdArgs.at(i);
+      }
+      catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << cmdArgs.at(i) ; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
   }
+  try{
   memory->put_bytes(addr, num_bytes, buffer);
+  }
+   catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << cmdArgs.at(i) ; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
 }
 
 void ProcessTrace::CmdCopy(const string &line,
@@ -154,8 +172,21 @@ void ProcessTrace::CmdCopy(const string &line,
   Addr src = cmdArgs.at(1);
   Addr num_bytes = cmdArgs.at(2);
   uint8_t buffer[num_bytes];
+  try{
   memory->get_bytes(buffer, src, num_bytes);
+  }
+   catch(mem::PageFaultException e) {
+        << "PageFaultException at virtual address "
+                << std::hex << "0x" << src; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
+  try{
   memory->put_bytes(dst, num_bytes, buffer);
+  }
+   catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << dst ;
+          mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
 }
 
 void ProcessTrace::CmdFill(const string &line,
@@ -166,7 +197,16 @@ void ProcessTrace::CmdFill(const string &line,
   Addr num_bytes = cmdArgs.at(1);
   uint8_t val = cmdArgs.at(2);
   for (int i = 0; i < num_bytes; ++i) {
+      try{
     memory->put_byte(addr++, &val);
+      }
+       catch(mem::WritePermissionFaultException e) {
+     
+    
+         << "WritePermissionFaultException "
+                << std::hex << "0x" << addr ;
+          mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
   }
 }
 
@@ -185,7 +225,15 @@ void ProcessTrace::CmdDump(const string &line,
       cout << "\n";
     }
     uint8_t byte_val;
+    try{
     memory->get_byte(&byte_val, addr++);
+    }
+     catch(mem::PageFaultException e) {
+        << "PageFaultException at virtual address "
+                << std::hex << "0x" << addr;
+        mem::PMCB.operation_state=mem::PMCB::NONE ;
+        
+      }
     cout << " " << std::setfill('0') << std::setw(2)
             << static_cast<uint32_t> (byte_val);
   }
@@ -216,3 +264,4 @@ void ProcessTrace::CmdWritable(const std::string& line,
 void ProcessTrace::CmdComment(const std::string& line) {
     cout << line << std::endl;
 }
+
