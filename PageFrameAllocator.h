@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+using namespace mem;
+
 class PageFrameAllocator {
 public:
   /**
@@ -23,7 +25,7 @@ public:
    * 
    * @param page_frame_count
    */
-  PageFrameAllocator(uint32_t page_frame_count);
+  PageFrameAllocator(MMU &mmu_mem);
   
   virtual ~PageFrameAllocator() {}  // empty destructor
   
@@ -40,7 +42,7 @@ public:
    * @param page_frames page frame numbers allocated are pushed on back
    * @return true if success, false if insufficient page frames (no frames allocated)
    */
-  bool Allocate(uint32_t count, std::vector<uint32_t> &page_frames);
+  bool Allocate(uint32_t count);
   
   /**
    * Deallocate - return page frames to free list
@@ -54,6 +56,7 @@ public:
   
   // Access to private values
   uint32_t get_page_frames_free(void) const { return page_frames_free; }
+  Addr get_free_list_head(void) const { return free_list_head; }
   
   /**
    * FreeListToString - get string representation of free list
@@ -68,16 +71,19 @@ private:
   std::vector<uint8_t> memory;
   
   // Number of first free page frame
-  uint32_t free_list_head;
+  Addr free_list_head;
   
   // Total number of page frames
-  uint32_t page_frames_total;
+  Addr page_frames_total;
   
   // Current number of free page frames
-  uint32_t page_frames_free;
+  Addr page_frames_free;
+  
+  //MMU pointer
+  MMU *mem;
   
   // End of list marker
-  static const uint32_t kEndList = 0xFFFFFFFF;
+  static const Addr kEndList = 0xFFFFFFFF;
 };
 
 #endif /* PAGEFRAMEALLOCATOR_H */
