@@ -320,19 +320,59 @@ void ProcessTrace::CmdWritable(const std::string& line,
         const std::vector<uint32_t>& cmdArgs) {
     //Command Format:
     //writable vaddr size status
+    
+    uint32_t vaddr = cmdArgs.at(0);
+    uint32_t count = cmdArgs.at(1);
+    bool status = cmdArgs.at(2);
+    
+    /* Set to physical -- we're modifying physical page table entries */
+    PMCB temp_pmcb;
+    memory->get_PMCB(temp_pmcb);
+    memory->set_PMCB(physical_pmcb);
+    
+    PageTable dir;
+    Addr dir_base = physical_pmcb.page_table_base;// Get our page directory (1st level page table)
+    /* Now read the page directory */
+    try {
+        memory->get_bytes(reinterpret_cast<uint8_t*> (&dir), dir_base, kPageTableSizeBytes);
+    } catch (PageFaultException e) {
+        cout << "Page fault exception while reading page directory.\n";
+    }
+    Addr l2_offset;
+    Addr dir_index = ((vaddr >> (kPageSizeBits + kPageTableSizeBits)) & kPageTableIndexMask);
 
-    /***
-     * TODO:
-     * change writable status of size bytes of memory starting at virtual
-     * address vaddr. The starting address, vaddr, and the byte count, size,
-     * must be exact multiples of the pages size (0x1000).
-     * -If status is 0, the Writable bit in the 2nd level page table should be
-     * cleared for all Present pages in the range
-     * -If status isn't 0, the Writable bit in the 2nd level page table should be 
-     * set for all Present pages in the range
-     * -Any pages in the range which are not Present should be ignored
-     * -The first level page table should not be changed
-     ***/
+    PageTable l2_temp; 
+    Addr l2_pAddr = (dir[dir_index] & 0xFFFFF000);
+    try {
+        /* If we DO have a page table, read that page table
+         * into l2_temp */
+        memory->get_bytes(reinterpret_cast<uint8_t*> (&l2_temp),
+                l2_pAddr, kPageTableSizeBytes);
+    } catch (PageFaultException e) {
+        cout << "Page fault exception while reading L2 PT.\n";
+    }
+    
+    uint32_t num_frames = count/kPageSize;
+    uint32_t i = 0;
+    
+    while(i++ < num_frames){
+        l2_offset = (vaddr >> kPageSizeBits) & kPageTableIndexMask;
+        
+        /* Determine if page in L2 table maps to something */
+        bool pageEntry_exists = l2_temp[l2_offset] & kPTE_PresentMask;
+        if (pageEntry_exists) {
+            if(!status){
+                l2_temp[l2_offset] &= ~(kPTE_WritableMask);
+            } else if (status){
+                l2_temp[l2_offset] |= kPTE_WritableMask;
+            }
+            
+            memory->put_bytes(l2_pAddr, kPageTableSizeBytes,
+                    reinterpret_cast<uint8_t*> (&l2_temp));
+        }
+        vaddr += (i*kPageSize);
+    }
+    memory->set_PMCB(temp_pmcb);    
 }
 
 void ProcessTrace::CmdComment(const std::string& line) {
