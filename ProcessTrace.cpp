@@ -235,7 +235,7 @@ void ProcessTrace::CmdCompare(const string &line,
   memory->get_bytes(buffer, addr, num_bytes);
   }
   catch(mem::PageFaultException e) {
-         << "PageFaultException at virtual address "
+         cerr<< "PageFaultException at virtual address "
                 << std::hex << "0x" << addr ; mem::PMCB.operation_state=mem::PMCB::NONE ;
       }
   for (int i = 1; i < cmdArgs.size(); ++i) {
@@ -260,7 +260,7 @@ void ProcessTrace::CmdPut(const string &line,
      buffer[i-1] = cmdArgs.at(i);
       }
       catch(mem::PageFaultException e) {
-         << "PageFaultException at virtual address "
+         cerr<< "PageFaultException at virtual address "
                 << std::hex << "0x" << cmdArgs.at(i) ; mem::PMCB.operation_state=mem::PMCB::NONE ;
       }
   }
@@ -268,7 +268,7 @@ void ProcessTrace::CmdPut(const string &line,
   memory->put_bytes(addr, num_bytes, buffer);
   }
    catch(mem::PageFaultException e) {
-         << "PageFaultException at virtual address "
+         cer<< "PageFaultException at virtual address "
                 << std::hex << "0x" << cmdArgs.at(i) ; mem::PMCB.operation_state=mem::PMCB::NONE ;
       }
 }
@@ -284,14 +284,14 @@ void ProcessTrace::CmdCopy(const string &line,
   memory->get_bytes(buffer, src, num_bytes);
   }
    catch(mem::PageFaultException e) {
-        << "PageFaultException at virtual address "
+        cerr<< "PageFaultException at virtual address "
                 << std::hex << "0x" << src; mem::PMCB.operation_state=mem::PMCB::NONE ;
       }
   try{
   memory->put_bytes(dst, num_bytes, buffer);
   }
    catch(mem::PageFaultException e) {
-         << "PageFaultException at virtual address "
+         cerr<< "PageFaultException at virtual address "
                 << std::hex << "0x" << dst ;
           mem::PMCB.operation_state=mem::PMCB::NONE ;
       }
@@ -311,7 +311,7 @@ void ProcessTrace::CmdFill(const string &line,
        catch(mem::WritePermissionFaultException e) {
      
     
-         << "WritePermissionFaultException "
+         cerr<< "WritePermissionFaultException "
                 << std::hex << "0x" << addr ;
           mem::PMCB.operation_state=mem::PMCB::NONE ;
       }
@@ -338,7 +338,7 @@ void ProcessTrace::CmdDump(const string &line,
     memory->get_byte(&byte_val, addr++);
     }
      catch(mem::PageFaultException e) {
-        << "PageFaultException at virtual address "
+        cerr<< "PageFaultException at virtual address "
                 << std::hex << "0x" << addr;
         mem::PMCB.operation_state=mem::PMCB::NONE ;
         
