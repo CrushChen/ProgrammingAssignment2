@@ -16,6 +16,7 @@
 #include <iostream>
 #include <sstream>
 
+using namespace mem;
 using std::cin;
 using std::cout;
 using std::cerr;
@@ -24,9 +25,7 @@ using std::istringstream;
 using std::string;
 using std::vector;
 
-using namespace mem;
-
-ProcessTrace::ProcessTrace(std::string file_name_, mem::MMU &memory_, PageFrameAllocator &allocator_)
+ProcessTrace::ProcessTrace(std::string file_name_, MMU &memory_, PageFrameAllocator &allocator_)
 : file_name(file_name_), line_number(0) {
     // Open the trace file.  Abort program if can't open.
     trace.open(file_name, std::ios_base::in);
@@ -40,17 +39,14 @@ ProcessTrace::ProcessTrace(std::string file_name_, mem::MMU &memory_, PageFrameA
     
     //Build an empty page-directory
     PageTable page_directory;
-    //Addr directory_offset = (DIRECTORY_BASE >> (kPageSizeBits + mem::kPageTableSizeBits)) & mem::kPageTableIndexMask;
-    //const Addr kVaddrStart = (255 << (mem::kPageTableSizeBits + kPageSizeBits)) 
-    //+ ((mem::kPageTableEntries - 1) << kPageSizeBits);
-    Addr directory_physical = allocator->get_free_list_head() * kPageSize;
     memory->set_PMCB(physical_pmcb);
+    Addr directory_physical = allocator->get_free_list_head() * mem::kPageSize;
     allocator->Allocate(1);
-    memory->put_bytes(directory_physical, mem::kPageTableSizeBytes, //Write page directory to memory
+    memory->put_bytes(directory_physical, kPageTableSizeBytes, //Write page directory to memory
             reinterpret_cast<uint8_t*> (&page_directory));
-    virtual_pmcb(true, directory_physical); // load to start virtual mode
-    memory->set_PMCB(virtual_pmcb);
-   
+    // load to start virtual mode
+    const PMCB virtual_pmcb(true, directory_physical);
+    memory->set_PMCB(virtual_pmcb);  
 }
 
 ProcessTrace::~ProcessTrace() {
@@ -146,6 +142,8 @@ void ProcessTrace::CmdAlloc(const string &line,
         exit(3);
     }
     /* Switch to physical mode */
+    PMCB temp_pmcb;
+    memory->get_PMCB(temp_pmcb);
     memory->set_PMCB(physical_pmcb);
     
     uint32_t numFrames = num_bytes / 0x1000;
@@ -180,19 +178,10 @@ void ProcessTrace::CmdAlloc(const string &line,
     numFrames += numPTs;
     
     if(allocator->get_page_frames_free() >= numFrames){
-        /* Get our page directory (1st level page table) */
-        PageTable dir;
-        Addr dir_base = physical_pmcb.page_table_base;
-        /* Now read the page directory */
-        try {
-            memory->get_bytes(reinterpret_cast<uint8_t*>(&dir), dir_base, kPageTableSizeBytes);
-        } catch (PageFaultException e){
-            cout << "Page fault exception while reading page directory.\n";
-        }
         
         /* While we have page frames to allocate */
         while(count++ < numFrames){
-            Addr frame_pAddr = allocator->get_free_list_head();
+            Addr frame_pAddr = allocator->get_free_list_head() * kPageSize;
             Addr dir_index = ((vaddr >> (kPageSizeBits + kPageTableSizeBits)) & kPageTableIndexMask);
             Addr l2_offset = (vaddr >> kPageSizeBits) & kPageTableIndexMask;
             
@@ -202,13 +191,14 @@ void ProcessTrace::CmdAlloc(const string &line,
 
             /* If we have room to allocate */
             if(allocator->Allocate(1)){
+            //allocator->Allocate(1);
                 /* Compute some offsets */
                 PageTable l2_temp;
                 
                 /* If we don't already have a page table at this addr, allocate
                  * another frame. */
                 if(!pageTable_exists){
-                    Addr ptAddr = allocator->get_free_list_head();
+                    Addr ptAddr = allocator->get_free_list_head() *kPageSize;
                     /* Check that we can allocate another frame */
                     if(allocator->Allocate(1)){                       
                         dir[dir_index] = ptAddr | kPTE_PresentMask | kPTE_WritableMask;
@@ -244,7 +234,7 @@ void ProcessTrace::CmdAlloc(const string &line,
         }    
     }
     /* Switch back to virtual mode */
-    memory->set_PMCB(virtual_pmcb);       
+    memory->set_PMCB(temp_pmcb);       
 }
 
 void ProcessTrace::CmdCompare(const string &line,

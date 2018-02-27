@@ -163,10 +163,8 @@ private:
   // Memory contents
   mem::MMU* memory;
   PageFrameAllocator* allocator;
-  
-  const mem::Addr VIRTUAL_BASE = 0x1000;
+
   const mem::PMCB physical_pmcb;
-  const mem::PMCB virtual_pmcb;
 
   /**
    * ParseCommand - parse a trace file command.

@@ -13,7 +13,7 @@
 
 PageFrameAllocator::PageFrameAllocator(MMU &mmu_mem) {
     //Set our internal MMU pointer to the pointer provided in our constructor
-    mem = mmu_mem;
+    mem = &mmu_mem;
 
     //Build our free list
     page_frames_total = mem->get_frame_count();
@@ -25,13 +25,13 @@ PageFrameAllocator::PageFrameAllocator(MMU &mmu_mem) {
      * each page frame. */
     for (Addr frame = 0; frame < page_frames_total-1; ++frame) {
         Addr next = frame + 1;
-        mem->put_bytes(frame*kPageSize, sizeof(Addr), &next);
+        mem->put_bytes(frame*kPageSize, sizeof(Addr), reinterpret_cast<uint8_t*>(&next));
     }
     
     /* This code sets the first four bytes of the very last page frame
      * equal to 0xFFFFFFFF, which is our end-of-list marker */
     Addr end_list = kEndList;
-    mem->put_bytes((page_frames_total-1)*kPageSize, sizeof(Addr), &end_list);
+    mem->put_bytes((page_frames_total-1)*kPageSize, sizeof(Addr), reinterpret_cast<uint8_t*>(&end_list));
 
 }
 
@@ -39,24 +39,17 @@ bool PageFrameAllocator::Allocate(uint32_t count) {
     if (count <= page_frames_free) { // if enough to allocate
         Addr freeListHead_offset = free_list_head*kPageSize;
         
-        /* Switch MMU to physical mode */
-        PMCB phys_pmcb; 
-        mem->set_PMCB(phys_pmcb);
-        
         uint32_t zero = 0;
         while (count-- > 0) {
             /* Clear page frame before handing it off */
-            for(Addr i = 0; i < kPageSize; i*=sizeof(uint32_t)){
-                mem->put_bytes(freeListHead_offset, sizeof(uint32_t), &zero);  
+            mem->get_bytes(reinterpret_cast<uint8_t*>(&free_list_head), freeListHead_offset, sizeof(Addr));
+            for(Addr i = 0; i < kPageSize; i+=sizeof(uint32_t)){
+                mem->put_bytes(freeListHead_offset, sizeof(uint32_t), reinterpret_cast<uint8_t*>(&zero));  
             }
-            mem->get_bytes(&free_list_head, freeListHead_offset, sizeof(Addr));
+            //free_list_head++;
             freeListHead_offset = free_list_head*kPageSize;
             --page_frames_free;
         }
-        
-        /* Put the MMU back into virtual mode */
-        PMCB vm_pmcb(true, freeListHead_offset); // load to start virtual mode
-        mem->set_PMCB(vm_pmcb);
         return true;
     } else {
         return false; // do nothing and return error
