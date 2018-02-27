@@ -224,81 +224,129 @@ void ProcessTrace::CmdAlloc(const string &line,
 }
 
 void ProcessTrace::CmdCompare(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs) {
-    uint32_t addr = cmdArgs.at(0);
+                              const string &cmd,
+                              const vector<uint32_t> &cmdArgs) {
+  uint32_t addr = cmdArgs.at(0);
 
-    // Compare specified byte values
-    size_t num_bytes = cmdArgs.size() - 1;
-    uint8_t buffer[num_bytes];
-    memory->get_bytes(buffer, addr, num_bytes);
-    for (int i = 1; i < cmdArgs.size(); ++i) {
-        if (buffer[i - 1] != cmdArgs.at(i)) {
-            cout << "compare error at address " << std::hex << addr
-                    << ", expected " << static_cast<uint32_t> (cmdArgs.at(i))
-                    << ", actual is " << static_cast<uint32_t> (buffer[i - 1]) << "\n";
-        }
-        ++addr;
+  // Compare specified byte values
+  size_t num_bytes = cmdArgs.size() - 1;
+  uint8_t buffer[num_bytes];
+  try{
+  memory->get_bytes(buffer, addr, num_bytes);
+  }
+  catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << addr ; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
+  for (int i = 1; i < cmdArgs.size(); ++i) {
+    if(buffer[i-1] != cmdArgs.at(i)) {
+      cout << "compare error at address " << std::hex << addr
+              << ", expected " << static_cast<uint32_t>(cmdArgs.at(i))
+              << ", actual is " << static_cast<uint32_t>(buffer[i-1]) << "\n";
     }
+    ++addr;
+  }
 }
 
 void ProcessTrace::CmdPut(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs) {
-    // Put multiple bytes starting at specified address
-    uint32_t addr = cmdArgs.at(0);
-    size_t num_bytes = cmdArgs.size() - 1;
-    uint8_t buffer[num_bytes];
-    for (int i = 1; i < cmdArgs.size(); ++i) {
-        buffer[i - 1] = cmdArgs.at(i);
-    }
-    memory->put_bytes(addr, num_bytes, buffer);
+                          const string &cmd,
+                          const vector<uint32_t> &cmdArgs) {
+  // Put multiple bytes starting at specified address
+  uint32_t addr = cmdArgs.at(0);
+  size_t num_bytes = cmdArgs.size() - 1;
+  uint8_t buffer[num_bytes];
+  for (int i = 1; i < cmdArgs.size(); ++i) {
+      try{
+     buffer[i-1] = cmdArgs.at(i);
+      }
+      catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << cmdArgs.at(i) ; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
+  }
+  try{
+  memory->put_bytes(addr, num_bytes, buffer);
+  }
+   catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << cmdArgs.at(i) ; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
 }
-
 void ProcessTrace::CmdCopy(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs) {
-    // Copy specified number of bytes to destination from source
-    Addr dst = cmdArgs.at(0);
-    Addr src = cmdArgs.at(1);
-    Addr num_bytes = cmdArgs.at(2);
-    uint8_t buffer[num_bytes];
-    memory->get_bytes(buffer, src, num_bytes);
-    memory->put_bytes(dst, num_bytes, buffer);
+                           const string &cmd,
+                           const vector<uint32_t> &cmdArgs) {
+  // Copy specified number of bytes to destination from source
+  Addr dst = cmdArgs.at(0);
+  Addr src = cmdArgs.at(1);
+  Addr num_bytes = cmdArgs.at(2);
+  uint8_t buffer[num_bytes];
+  try{
+  memory->get_bytes(buffer, src, num_bytes);
+  }
+   catch(mem::PageFaultException e) {
+        << "PageFaultException at virtual address "
+                << std::hex << "0x" << src; mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
+  try{
+  memory->put_bytes(dst, num_bytes, buffer);
+  }
+   catch(mem::PageFaultException e) {
+         << "PageFaultException at virtual address "
+                << std::hex << "0x" << dst ;
+          mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
 }
 
 void ProcessTrace::CmdFill(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs) {
-    // Fill a sequence of bytes with the specified value
-    Addr addr = cmdArgs.at(0);
-    Addr num_bytes = cmdArgs.at(1);
-    uint8_t val = cmdArgs.at(2);
-    for (int i = 0; i < num_bytes; ++i) {
-        memory->put_byte(addr++, &val);
-    }
+                          const string &cmd,
+                          const vector<uint32_t> &cmdArgs) {
+  // Fill a sequence of bytes with the specified value
+  Addr addr = cmdArgs.at(0);
+  Addr num_bytes = cmdArgs.at(1);
+  uint8_t val = cmdArgs.at(2);
+  for (int i = 0; i < num_bytes; ++i) {
+      try{
+    memory->put_byte(addr++, &val);
+      }
+       catch(mem::WritePermissionFaultException e) {
+     
+    
+         << "WritePermissionFaultException "
+                << std::hex << "0x" << addr ;
+          mem::PMCB.operation_state=mem::PMCB::NONE ;
+      }
+  }
 }
 
 void ProcessTrace::CmdDump(const string &line,
-        const string &cmd,
-        const vector<uint32_t> &cmdArgs) {
-    uint32_t addr = cmdArgs.at(0);
-    uint32_t count = cmdArgs.at(1);
+                          const string &cmd,
+                          const vector<uint32_t> &cmdArgs) {
+  uint32_t addr = cmdArgs.at(0);
+  uint32_t count = cmdArgs.at(1);
+ 
 
-    // Output the address
-    cout << std::hex << addr;
+  // Output the address
+  cout << std::hex << addr;
 
-    // Output the specified number of bytes starting at the address
-    for (int i = 0; i < count; ++i) {
-        if ((i % 16) == 0) { // line break every 16 bytes
-            cout << "\n";
-        }
-        uint8_t byte_val;
-        memory->get_byte(&byte_val, addr++);
-        cout << " " << std::setfill('0') << std::setw(2)
-                << static_cast<uint32_t> (byte_val);
+  // Output the specified number of bytes starting at the address
+  for(int i = 0; i < count; ++i) {
+    if((i % 16) == 0) {  // line break every 16 bytes
+      cout << "\n";
     }
-    cout << "\n";
+    uint8_t byte_val;
+    try{
+    memory->get_byte(&byte_val, addr++);
+    }
+     catch(mem::PageFaultException e) {
+        << "PageFaultException at virtual address "
+                << std::hex << "0x" << addr;
+        mem::PMCB.operation_state=mem::PMCB::NONE ;
+        
+      }
+    cout << " " << std::setfill('0') << std::setw(2)
+            << static_cast<uint32_t> (byte_val);
+  }
+  cout << "\n";
 }
 
 void ProcessTrace::CmdWritable(const std::string& line,
