@@ -306,7 +306,17 @@ void ProcessTrace::CmdWritable(const std::string& line,
         const std::vector<uint32_t>& cmdArgs) {
     //Command Format:
     //writable vaddr size status
-
+    uint32_t addr = cmdArgs.at(0);
+    uint32_t count = cmdArgs.at(1);
+    uint32_t status = cmdArgs.(2);
+    if(status==0)
+    {
+        mem::PageTable page_table_l2; // 2nd level page table
+    
+    page_table_l2[mem::kPageOffsetMask] = (0x1234 * mem::kPageSize) | mem::kPTE_PresentMask| mem::kPTE_WritableMask;
+    memory->put_bytes(11 * mem::kPageSize,mem:: kPageTableSizeBytes,
+                 reinterpret_cast<uint8_t*> (&page_table_l2));
+    }
     /***
      * TODO:
      * change writable status of size bytes of memory starting at virtual
