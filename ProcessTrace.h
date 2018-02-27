@@ -119,6 +119,7 @@
 #define PROCESSTRACE_H
 
 #include <MMU.h>
+#include "PageFrameAllocator.h"
 
 #include <fstream>
 #include <string>
@@ -131,7 +132,7 @@ public:
    * 
    * @param file_name_ source of trace commands
    */
-  ProcessTrace(std::string file_name_);
+  ProcessTrace(std::string file_name_, mem::MMU &memory_, PageFrameAllocator &allocator_);
   
   /**
    * Destructor - close trace file, clean up processing
@@ -160,8 +161,13 @@ private:
   long line_number;
 
   // Memory contents
-  std::unique_ptr<mem::MMU> memory;
+  mem::MMU* memory;
+  PageFrameAllocator* allocator;
   
+  const mem::Addr VIRTUAL_BASE = 0x1000;
+  const mem::PMCB physical_pmcb;
+  const mem::PMCB virtual_pmcb;
+
   /**
    * ParseCommand - parse a trace file command.
    *   Aborts program if invalid trace file.
