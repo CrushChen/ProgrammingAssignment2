@@ -16,10 +16,6 @@
 #include <iostream>
 #include <sstream>
 
-using mem::Addr;
-using mem::MMU;
-using mem::PageTable;
-using mem::PMCB;
 using std::cin;
 using std::cout;
 using std::cerr;
@@ -27,6 +23,8 @@ using std::getline;
 using std::istringstream;
 using std::string;
 using std::vector;
+
+using namespace mem;
 
 ProcessTrace::ProcessTrace(std::string file_name_, mem::MMU &memory_, PageFrameAllocator &allocator_)
 : file_name(file_name_), line_number(0) {
